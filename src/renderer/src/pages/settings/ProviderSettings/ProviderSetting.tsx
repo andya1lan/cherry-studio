@@ -39,6 +39,7 @@ import GPUStackSettings from './GPUStackSettings'
 import HealthCheckPopup from './HealthCheckPopup'
 import LMStudioSettings from './LMStudioSettings'
 import ModelList, { ModelStatus } from './ModelList'
+import { Model } from '@renderer/types'
 import ModelListSearchBar from './ModelListSearchBar'
 import ProviderOAuth from './ProviderOAuth'
 import ProviderSettingsPopup from './ProviderSettingsPopup'
@@ -54,9 +55,11 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
   const allProviders = useAllProviders()
   const { updateProviders } = useProviders()
   const [apiHost, setApiHost] = useState(provider.apiHost)
+  const [apiHostPlaceholder, setApiHostPlaceholder] = useState(provider.apiHost)
   const [apiVersion, setApiVersion] = useState(provider.apiVersion)
   const [modelSearchText, setModelSearchText] = useState('')
   const deferredModelSearchText = useDeferredValue(modelSearchText)
+  const [selectedModel, setSelectedModel] = useState<Model | null>(null)
   const { t } = useTranslation()
   const { theme } = useTheme()
 
@@ -125,10 +128,10 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
   )
 
   const onUpdateApiHost = () => {
-    if (apiHost.trim()) {
-      updateProvider({ apiHost })
+    if (apiHostPlaceholder.trim()) {
+      updateProvider({ apiHost: apiHostPlaceholder })
     } else {
-      setApiHost(provider.apiHost)
+      setApiHostPlaceholder(provider.apiHost)
     }
   }
 
@@ -275,18 +278,29 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
   }
 
   const onReset = () => {
-    setApiHost(configedApiHost)
+    setApiHostPlaceholder(configedApiHost)
     updateProvider({ apiHost: configedApiHost })
   }
 
+  const onModelSelect = (model: Model) => {
+    setSelectedModel(model)
+    if (apiHostPlaceholder.includes('{model_id}')) {
+      setApiHost(apiHostPlaceholder.replace('{model_id}', model.id))
+    }
+  }
+
   const hostPreview = () => {
-    if (apiHost.endsWith('#')) {
-      return apiHost.replace('#', '')
+    const host = apiHostPlaceholder.includes('{model_id}')
+      ? apiHostPlaceholder.replace('{model_id}', selectedModel?.id || 'test-model')
+      : apiHostPlaceholder
+
+    if (host.endsWith('#')) {
+      return host.replace('#', '')
     }
     if (provider.type === 'openai') {
-      return formatApiHost(apiHost) + 'chat/completions'
+      return formatApiHost(host) + 'chat/completions'
     }
-    return formatApiHost(apiHost) + 'responses'
+    return formatApiHost(host) + 'responses'
   }
 
   // API key 连通性检查状态指示器，目前仅在失败时显示
@@ -307,6 +321,7 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
       return
     }
     setApiHost(provider.apiHost)
+    setApiHostPlaceholder(provider.apiHost)
   }, [provider.apiHost, provider.id])
 
   return (
@@ -409,12 +424,12 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
               </SettingSubtitle>
               <Space.Compact style={{ width: '100%', marginTop: 5 }}>
                 <Input
-                  value={apiHost}
+                  value={apiHostPlaceholder}
                   placeholder={t('settings.provider.api_host')}
-                  onChange={(e) => setApiHost(e.target.value)}
+                  onChange={(e) => setApiHostPlaceholder(e.target.value)}
                   onBlur={onUpdateApiHost}
                 />
-                {!isEmpty(configedApiHost) && apiHost !== configedApiHost && (
+                {!isEmpty(configedApiHost) && apiHostPlaceholder !== configedApiHost && (
                   <Button danger onClick={onReset}>
                     {t('settings.provider.api.url.reset')}
                   </Button>
@@ -477,7 +492,12 @@ const ProviderSetting: FC<Props> = ({ providerId }) => {
           )}
         </Space>
       </SettingSubtitle>
-      <ModelList providerId={provider.id} modelStatuses={modelStatuses} searchText={deferredModelSearchText} />
+      <ModelList
+        providerId={provider.id}
+        modelStatuses={modelStatuses}
+        searchText={deferredModelSearchText}
+        onModelSelect={onModelSelect}
+      />
     </SettingContainer>
   )
 }

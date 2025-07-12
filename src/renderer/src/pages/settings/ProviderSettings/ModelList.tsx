@@ -163,12 +163,18 @@ interface ModelListProps {
   providerId: string
   modelStatuses?: ModelStatus[]
   searchText?: string
+  onModelSelect?: (model: Model) => void
 }
 
 /**
  * Model list component
  */
-const ModelList: React.FC<ModelListProps> = ({ providerId, modelStatuses = [], searchText = '' }) => {
+const ModelList: React.FC<ModelListProps> = ({
+  providerId,
+  modelStatuses = [],
+  searchText = '',
+  onModelSelect
+}) => {
   const { t } = useTranslation()
   const { provider, updateProvider, models, removeModel } = useProvider(providerId)
   const { assistants } = useAssistants()
@@ -271,7 +277,7 @@ const ModelList: React.FC<ModelListProps> = ({ providerId, modelStatuses = [], s
                   const isChecking = modelStatus?.checking === true
 
                   return (
-                    <ListItem key={model.id}>
+                    <ListItem key={model.id} onClick={() => onModelSelect?.(model)}>
                       <HStack alignItems="center" gap={10} style={{ flex: 1 }}>
                         <Avatar src={getModelLogo(model.id)} style={{ width: 26, height: 26 }}>
                           {model?.name?.[0]?.toUpperCase()}
